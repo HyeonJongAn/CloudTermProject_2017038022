@@ -5,6 +5,10 @@
 * using AWS Java SDK Library
 * 
 */
+import java.io.InputStream;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.IOException;
 import java.util.Iterator;
 import java.util.Scanner;
 import com.amazonaws.AmazonClientException;
@@ -32,6 +36,8 @@ import com.amazonaws.services.ec2.model.DescribeImagesRequest;
 import com.amazonaws.services.ec2.model.DescribeImagesResult;
 import com.amazonaws.services.ec2.model.Image;
 import com.amazonaws.services.ec2.model.Filter;
+
+import com.jcraft.jsch.*;
 
 public class awsTest {
 
@@ -74,6 +80,7 @@ public class awsTest {
 			System.out.println("  3. start instance               4. available regions      ");
 			System.out.println("  5. stop instance                6. create instance        ");
 			System.out.println("  7. reboot instance              8. list images            ");
+			System.out.println("  9. instance's condor status                               ");
 			System.out.println("                                 99. quit                   ");
 			System.out.println("------------------------------------------------------------");
 			
@@ -141,6 +148,15 @@ public class awsTest {
 
 			case 8: 
 				listImages();
+				break;
+
+			case 9:
+				System.out.print("Enter instance id: ");
+				if(id_string.hasNext())
+					instance_id = id_string.nextLine();
+				
+				if(!instance_id.isBlank()) 
+					checkCondorStatus(instance_id);
 				break;
 
 			case 99: 
@@ -329,7 +345,8 @@ public class awsTest {
 		DescribeImagesRequest request = new DescribeImagesRequest();
 		ProfileCredentialsProvider credentialsProvider = new ProfileCredentialsProvider();
 		
-		request.getFilters().add(new Filter().withName("name").withValues("aws-htcondor-slave"));
+		// aws-htcondor-slave 이름을 가진 이미지만 검색됨. 하지만 필터를 지우면 작업 시간이 지나치게 길어지는 문제가 있었음.
+		request.getFilters().add(new Filter().withName("name").withValues("aws-htcondor-slave")); 
 		request.setRequestCredentialsProvider(credentialsProvider);
 		
 		DescribeImagesResult results = ec2.describeImages(request);
@@ -338,7 +355,61 @@ public class awsTest {
 			System.out.printf("[ImageID] %s, [Name] %s, [Owner] %s\n", 
 					images.getImageId(), images.getName(), images.getOwnerId());
 		}
-		
+	}
+
+	public static void checkCondorStatus(String instanceId) {
+    	try {
+        	JSch jsch = new JSch();
+
+			String publicDnsName = getPublicDnsName(instanceId);
+    		if (publicDnsName == null) {
+        		System.out.println("Could not find instance with ID: " + instanceId);
+        		return;
+    		}
+
+        	// AWS EC2 인스턴스에 연결하기 위한 세션 생성
+        	Session session = jsch.getSession("ec2-user", publicDnsName, 22);
+        	session.setConfig("StrictHostKeyChecking", "no");
+        	jsch.addIdentity("/home/an183244/Downloads/testtest.pem");
+        	session.connect();
+
+        	// SSH 채널을 열고 condor_status 명령어 실행
+        	ChannelExec channel = (ChannelExec) session.openChannel("exec");
+        	channel.setCommand("condor_status");
+        	channel.setErrStream(System.err);
+        	channel.connect();
+
+        	// 결과 출력
+        	InputStream input = channel.getInputStream();
+        	BufferedReader reader = new BufferedReader(new InputStreamReader(input));
+        	String line;
+        	while ((line = reader.readLine()) != null) {
+            	System.out.println(line);
+        	}
+
+        	// 채널과 세션 종료
+        	channel.disconnect();
+        	session.disconnect();
+    	} catch (JSchException | IOException e) {
+	        e.printStackTrace();
+    	}
+	}
+
+	public static String getPublicDnsName(String instanceId) {
+    	AmazonEC2 ec2 = AmazonEC2ClientBuilder.defaultClient();
+
+    	DescribeInstancesRequest request = new DescribeInstancesRequest().withInstanceIds(instanceId);
+    	DescribeInstancesResult response = ec2.describeInstances(request);
+
+    	for (Reservation reservation : response.getReservations()) {
+        	for (Instance instance : reservation.getInstances()) {
+        	    if (instance.getInstanceId().equals(instanceId)) {
+    	            return instance.getPublicDnsName();
+	            }
+        	}
+	    }
+
+	    return null;
 	}
 }
 	
