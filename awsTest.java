@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.io.FileWriter;
 import java.util.Iterator;
 import java.util.Scanner;
+import java.util.Collections;
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
@@ -44,6 +45,13 @@ import com.amazonaws.services.ec2.model.DescribeKeyPairsResult;
 import com.amazonaws.services.ec2.model.KeyPairInfo;
 import com.amazonaws.services.ec2.model.CreateKeyPairRequest;
 import com.amazonaws.services.ec2.model.CreateKeyPairResult;
+import com.amazonaws.services.ec2.model.DescribeSecurityGroupsRequest;
+import com.amazonaws.services.ec2.model.DescribeSecurityGroupsResult;
+import com.amazonaws.services.ec2.model.SecurityGroup;
+import com.amazonaws.services.ec2.model.IpPermission;
+import com.amazonaws.services.ec2.model.AuthorizeSecurityGroupIngressRequest;
+import com.amazonaws.services.ec2.model.AuthorizeSecurityGroupIngressResult;
+import com.amazonaws.services.ec2.model.IpRange;
 
 import com.jcraft.jsch.*;
 
@@ -84,12 +92,13 @@ public class awsTest {
 			System.out.println("------------------------------------------------------------");
 			System.out.println("           Amazon AWS Control Panel using SDK               ");
 			System.out.println("------------------------------------------------------------");
-			System.out.println("  1. list instance                2. available zones        ");
+			System.out.println("  1. list instances               2. available zones        ");
 			System.out.println("  3. start instance               4. available regions      ");
 			System.out.println("  5. stop instance                6. create instance        ");
 			System.out.println("  7. reboot instance              8. list images            ");
-			System.out.println("  9. instance's condor_status    10. create images          ");
-			System.out.println(" 11. list key pair               12. create key pair        ");
+			System.out.println("  9. instance's condor_status    10. create image           ");
+			System.out.println(" 11. list key pairs              12. create key pair        ");
+			System.out.println(" 13. list security groups        14. add security rules     ");
 			System.out.println(" 98. info                        99. quit                   ");
 			System.out.println("------------------------------------------------------------");
 			
@@ -190,6 +199,44 @@ public class awsTest {
 				if(!key_name.isBlank()) 
 					createKeyPair(key_name);
 				break;
+			
+			case 13:
+				listSecurityGroups();
+				break;
+
+			case 14: 
+    			System.out.print("Enter security group's id: ");
+    			String group_id = "";
+    			if(id_string.hasNext())
+        			group_id = id_string.nextLine();
+				
+    			System.out.print("Enter protocol: ");
+    			String protocol = "";
+    			if(id_string.hasNext())
+        			protocol = id_string.nextLine();
+
+    			System.out.print("Enter from port: ");
+    			int from_port = 0;
+    			if(id_string.hasNextInt()) {
+        			from_port = id_string.nextInt();
+        			id_string.nextLine();
+        			}
+
+			    System.out.print("Enter to port: ");
+    			int to_port = 0;
+    			if(id_string.hasNextInt()) {
+        			to_port = id_string.nextInt();
+        			id_string.nextLine();
+        			}
+
+    			System.out.print("Enter IP range: ");
+    			String ip_range = "";
+    			if(id_string.hasNext())
+        			ip_range = id_string.nextLine();
+
+    			if(!group_id.isBlank() && !protocol.isBlank() && from_port > 0 && to_port > 0 && !ip_range.isBlank())
+        			addRuleToSecurityGroup(group_id, protocol, from_port, to_port, ip_range);
+    			break;
 
 			case 69:
 				System.out.println("Y Do you enter dis num?");
@@ -510,5 +557,38 @@ public class awsTest {
         	"Successfully created key pair named %s",
     	    response.getKeyPair().getKeyName());
 	}
+
+	public static void listSecurityGroups() {
+		final AmazonEC2 ec2 = AmazonEC2ClientBuilder.defaultClient();
+
+        DescribeSecurityGroupsRequest request = new DescribeSecurityGroupsRequest();
+        DescribeSecurityGroupsResult response = ec2.describeSecurityGroups(request);
+
+        for(SecurityGroup group : response.getSecurityGroups()) {
+            System.out.printf(
+                "Found security group with id %s, name %s and description %s\n",
+                group.getGroupId(), group.getGroupName(), group.getDescription());
+        }
+    }
+
+    public static void addRuleToSecurityGroup(String group_id, String protocol, int from_port, int to_port, String ip_range) {
+        final AmazonEC2 ec2 = AmazonEC2ClientBuilder.defaultClient();
+
+        IpRange ipRangeObj = new IpRange().withCidrIp(ip_range);
+        IpPermission ipPermission = new IpPermission()
+            .withIpProtocol(protocol)
+            .withFromPort(from_port)
+            .withToPort(to_port);
+        ipPermission.getIpv4Ranges().add(ipRangeObj);
+
+        AuthorizeSecurityGroupIngressRequest request = new AuthorizeSecurityGroupIngressRequest()
+            .withGroupId(group_id)
+            .withIpPermissions(ipPermission);
+
+        ec2.authorizeSecurityGroupIngress(request);
+
+        System.out.printf(
+            "Successfully added rule to security group %s", group_id);
+    }
 }
 	
