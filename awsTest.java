@@ -250,7 +250,7 @@ public class awsTest {
 				System.out.println("Based on AWS SDK for Java 1.11.643");
 				System.out.println("and Prof's Basic menu Source Code");
 				System.out.println("");
-				System.out.println("Version: 1.3");
+				System.out.println("Version: 1.4");
 				System.out.println("Made by Hyeonjong An (2017038022)");
 				System.out.println("Special Thanks to");
 				System.out.println("Prof. Seo-Young Noh, TA Hyeongbin Kang");
