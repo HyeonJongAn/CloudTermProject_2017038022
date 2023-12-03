@@ -9,6 +9,7 @@ import java.io.InputStream;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.IOException;
+import java.io.FileWriter;
 import java.util.Iterator;
 import java.util.Scanner;
 import com.amazonaws.AmazonClientException;
@@ -38,12 +39,17 @@ import com.amazonaws.services.ec2.model.Image;
 import com.amazonaws.services.ec2.model.Filter;
 import com.amazonaws.services.ec2.model.CreateImageRequest;
 import com.amazonaws.services.ec2.model.CreateImageResult;
+import com.amazonaws.services.ec2.model.DescribeKeyPairsRequest;
+import com.amazonaws.services.ec2.model.DescribeKeyPairsResult;
+import com.amazonaws.services.ec2.model.KeyPairInfo;
+import com.amazonaws.services.ec2.model.CreateKeyPairRequest;
+import com.amazonaws.services.ec2.model.CreateKeyPairResult;
 
 import com.jcraft.jsch.*;
 
 public class awsTest {
 
-	static AmazonEC2      ec2;
+	static AmazonEC2 ec2;
 
 	private static void init() throws Exception {
 
@@ -82,7 +88,8 @@ public class awsTest {
 			System.out.println("  3. start instance               4. available regions      ");
 			System.out.println("  5. stop instance                6. create instance        ");
 			System.out.println("  7. reboot instance              8. list images            ");
-			System.out.println("  9. instance's condor status    10. create images          ");
+			System.out.println("  9. instance's condor_status    10. create images          ");
+			System.out.println(" 11. list key pair               12. create key pair        ");
 			System.out.println(" 98. info                        99. quit                   ");
 			System.out.println("------------------------------------------------------------");
 			
@@ -170,6 +177,20 @@ public class awsTest {
 					createImage(instance_id);
 				break;
 
+			case 11:
+				listKeyPairs();
+				break;
+
+			case 12: 
+				System.out.print("Enter Key pair name: ");
+				String key_name = "";
+				if(id_string.hasNext())
+					key_name = id_string.nextLine();
+				
+				if(!key_name.isBlank()) 
+					createKeyPair(key_name);
+				break;
+
 			case 69:
 				System.out.println("Y Do you enter dis num?");
 				break;
@@ -182,7 +203,7 @@ public class awsTest {
 				System.out.println("Based on AWS SDK for Java 1.11.643");
 				System.out.println("and Prof's Basic menu Source Code");
 				System.out.println("");
-				System.out.println("Version: 1.2");
+				System.out.println("Version: 1.3");
 				System.out.println("Made by Hyeonjong An (2017038022)");
 				System.out.println("Special Thanks to");
 				System.out.println("Prof. Seo-Young Noh, TA Hyeongbin Kang");
@@ -427,7 +448,7 @@ public class awsTest {
 	}
 
 	public static String getPublicDnsName(String instanceId) {
-    	AmazonEC2 ec2 = AmazonEC2ClientBuilder.defaultClient();
+    	final AmazonEC2 ec2 = AmazonEC2ClientBuilder.defaultClient();
 
     	DescribeInstancesRequest request = new DescribeInstancesRequest().withInstanceIds(instanceId);
     	DescribeInstancesResult response = ec2.describeInstances(request);
@@ -455,6 +476,39 @@ public class awsTest {
     	System.out.printf(
         	"Successfully created image with id %s from instance %s",
     		response.getImageId(), instance_id);
+	}
+
+	public static void listKeyPairs() {
+    	final AmazonEC2 ec2 = AmazonEC2ClientBuilder.defaultClient();
+
+    	DescribeKeyPairsResult response = ec2.describeKeyPairs();
+
+    	for(KeyPairInfo key_pair : response.getKeyPairs()) {
+        	System.out.printf(
+            	"Found key pair with name %s and fingerprint %s\n",
+        	    key_pair.getKeyName(), key_pair.getKeyFingerprint());
+    	}
+	}
+
+	public static void createKeyPair(String key_name) {
+    	final AmazonEC2 ec2 = AmazonEC2ClientBuilder.defaultClient();
+
+    	CreateKeyPairRequest request = new CreateKeyPairRequest()
+    	    .withKeyName(key_name);
+
+    	CreateKeyPairResult response = ec2.createKeyPair(request);
+
+    	String privateKey = response.getKeyPair().getKeyMaterial();
+
+    	try (FileWriter writer = new FileWriter(key_name + ".pem")) {
+	        writer.write(privateKey);
+    	} catch (IOException e) {
+	        e.printStackTrace();
+    	}
+
+	    System.out.printf(
+        	"Successfully created key pair named %s",
+    	    response.getKeyPair().getKeyName());
 	}
 }
 	
