@@ -36,6 +36,8 @@ import com.amazonaws.services.ec2.model.DescribeImagesRequest;
 import com.amazonaws.services.ec2.model.DescribeImagesResult;
 import com.amazonaws.services.ec2.model.Image;
 import com.amazonaws.services.ec2.model.Filter;
+import com.amazonaws.services.ec2.model.CreateImageRequest;
+import com.amazonaws.services.ec2.model.CreateImageResult;
 
 import com.jcraft.jsch.*;
 
@@ -80,8 +82,8 @@ public class awsTest {
 			System.out.println("  3. start instance               4. available regions      ");
 			System.out.println("  5. stop instance                6. create instance        ");
 			System.out.println("  7. reboot instance              8. list images            ");
-			System.out.println("  9. instance's condor status                               ");
-			System.out.println("                                 99. quit                   ");
+			System.out.println("  9. instance's condor status    10. create images          ");
+			System.out.println(" 98. info                        99. quit                   ");
 			System.out.println("------------------------------------------------------------");
 			
 			System.out.print("Enter an integer: ");
@@ -159,12 +161,41 @@ public class awsTest {
 					checkCondorStatus(instance_id);
 				break;
 
+			case 10:
+				System.out.print("Enter running instance's id: ");
+				if(id_string.hasNext())
+					instance_id = id_string.nextLine();
+				
+				if(!instance_id.isBlank()) 
+					createImage(instance_id);
+				break;
+
+			case 69:
+				System.out.println("Y Do you enter dis num?");
+				break;
+
+			case 98:
+				System.out.println("");
+				System.out.println("Cloud Computing Term Project");
+				System.out.println("");
+				System.out.println("Amazon AWS Control Panel using SDK");
+				System.out.println("Based on AWS SDK for Java 1.11.643");
+				System.out.println("and Prof's Basic menu Source Code");
+				System.out.println("");
+				System.out.println("Version: 1.2");
+				System.out.println("Made by Hyeonjong An (2017038022)");
+				System.out.println("Special Thanks to");
+				System.out.println("Prof. Seo-Young Noh, TA Hyeongbin Kang");
+				break;
+
 			case 99: 
 				System.out.println("bye!");
 				menu.close();
 				id_string.close();
 				return;
-			default: System.out.println("concentration!");
+
+			default:
+				System.out.println("concentration!");
 			}
 
 		}
@@ -410,6 +441,20 @@ public class awsTest {
 	    }
 
 	    return null;
+	}
+
+	public static void createImage(String instance_id) {
+	    final AmazonEC2 ec2 = AmazonEC2ClientBuilder.defaultClient();
+
+    	CreateImageRequest request = new CreateImageRequest()
+        	.withInstanceId(instance_id)
+        	.withName("createImageTest");
+
+    	CreateImageResult response = ec2.createImage(request);
+
+    	System.out.printf(
+        	"Successfully created image with id %s from instance %s",
+    		response.getImageId(), instance_id);
 	}
 }
 	
